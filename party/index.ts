@@ -160,7 +160,11 @@ export class MissionRoom extends Server<Env> {
         const step = steps[s.stepIndex];
         if (step?.kind !== "mg" || step.id !== msg.id || s.results[msg.id]) return;
         s.results[msg.id] = msg.result;
-        if (msg.result.set) Object.assign(s.design, msg.result.set);
+        // A mini game result can change the design; "" (or null) means drop that slot.
+        for (const [slot, value] of Object.entries(msg.result.set ?? {}) as [keyof typeof s.design, string | null | undefined][]) {
+          if (value) s.design[slot] = value;
+          else delete s.design[slot];
+        }
         s.stepIndex = Math.min(s.stepIndex + 1, steps.length - 1);
         break;
       }
