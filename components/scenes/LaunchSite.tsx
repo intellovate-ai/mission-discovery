@@ -65,7 +65,7 @@ export default function LaunchSite(props: SceneProps) {
       <SunLight />
 
       <Ground />
-      <LaunchMount />
+      <LaunchMount size={spec.radius > 1 ? 9 : 5} />
       <Rocket spec={spec} />
       <Gantry rocket={spec} />
       <Walkway />
@@ -198,23 +198,24 @@ function Ground() {
   );
 }
 
-function LaunchMount() {
+function LaunchMount({ size }: { size: number }) {
+  const clamp = size * 0.27;
   return (
     <group>
       <mesh position={[0, MOUNT_H / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[9, MOUNT_H, 9]} />
+        <boxGeometry args={[size, MOUNT_H, size]} />
         <meshStandardMaterial color="#7f7c76" roughness={0.9} />
       </mesh>
       {/* flame trench opening */}
-      <mesh position={[0, 1.8, 4.51]}>
-        <planeGeometry args={[5, 3.6]} />
+      <mesh position={[0, 1.8, size / 2 + 0.01]}>
+        <planeGeometry args={[size * 0.55, 3.6]} />
         <meshStandardMaterial color="#141414" roughness={1} />
       </mesh>
       {/* hold-down clamps */}
       {[0, 1, 2, 3].map((k) => {
         const a = (k * Math.PI) / 2 + Math.PI / 4;
         return (
-          <mesh key={k} position={[Math.cos(a) * 2.4, MOUNT_H + 0.7, Math.sin(a) * 2.4]} rotation={[0, -a, 0]} castShadow>
+          <mesh key={k} position={[Math.cos(a) * clamp, MOUNT_H + 0.7, Math.sin(a) * clamp]} rotation={[0, -a, 0]} castShadow>
             <boxGeometry args={[1.4, 1.4, 0.6]} />
             <meshStandardMaterial color="#5a5e64" metalness={0.5} roughness={0.5} />
           </mesh>
@@ -424,8 +425,8 @@ function CameraRig({ lobby, rocketTop }: { lobby: boolean; rocketTop: number }) 
     const cam = st.camera;
     if (lobby) {
       const a = Math.sin(t * 0.08) * 0.08;
-      want.set(-3.4 + Math.sin(a) * 6.4, MOUNT_H + 2.3 + Math.sin(t * 0.11) * 0.1, LOBBY_Z + Math.cos(a) * 6.4);
-      wantLook.set(-3.1, MOUNT_H + 1.15, LOBBY_Z);
+      want.set(-3.4 + Math.sin(a) * 6.4, MOUNT_H + 1.75 + Math.sin(t * 0.11) * 0.1, LOBBY_Z + Math.cos(a) * 6.4);
+      wantLook.set(-3.1, MOUNT_H + 1.5, LOBBY_Z);
     } else {
       // Frame the whole rocket, drifting slowly around it.
       const dist = rocketTop * 1.65 + 10;
