@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mission-discovery-rooms",
+  "main": "index.ts",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "MissionRoom", "class_name": "MissionRoom" },
+      { "name": "Leaderboard", "class_name": "Leaderboard" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MissionRoom", "Leaderboard"] }]
+}
