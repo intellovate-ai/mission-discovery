@@ -286,7 +286,8 @@ function RoleCards({ myRoles, bars, total }: { myRoles: RoleId[]; bars: Bar[]; t
           <div key={r} className="panel" style={{ marginTop: 14, borderLeft: `6px solid ${ROLE_INFO[r].color}` }}>
             <div className="display" style={{ fontSize: 24 }}>{ROLE_INFO[r].name}</div>
             <p style={{ marginTop: 6 }}>
-              As {ROLE_INFO[r].name}, you {best?.status === "ok" ? `kept ${best.label.toLowerCase()} healthy` : "kept the mission moving"}. Next time, watch your {(worst ?? best)?.label.toLowerCase() ?? "margins"}.
+              As {ROLE_INFO[r].name}, you {best?.status === "ok" ? `kept ${best.label.toLowerCase()} healthy` : "kept the mission moving"}.{" "}
+              {worst && worst.status !== "ok" && worst !== best ? `Next time, watch your ${worst.label.toLowerCase()}.` : "Keep that margin next time."}
             </p>
           </div>
         );

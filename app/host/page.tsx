@@ -161,11 +161,14 @@ export default function Host() {
       {step?.kind === "scene" && (step.scene === "launch" ? <LaunchSite {...sceneProps} /> : <FlightPath {...sceneProps} />)}
       {step?.kind === "report" && <FlightPath {...sceneProps} />}
       {step?.kind === "mg" && (
-        <MinigameStage key={`${stepIndex}-${step.id}`} id={step.id} mode="watch" state={state} sim={sim} myRoles={[]} isHost />
+        // The game gets the whole frame above the bottom strip, so no shell chrome covers it.
+        <div style={{ position: "absolute", inset: "0 0 64px 0" }}>
+          <MinigameStage key={`${stepIndex}-${step.id}`} id={step.id} mode="watch" state={state} sim={sim} myRoles={[]} isHost />
+        </div>
       )}
 
       {/* Top right: who and where (the lobby and report show the code themselves) */}
-      {stepIndex >= 0 && step?.kind !== "report" && <div style={{ position: "absolute", top: 20, right: 24, textAlign: "right", zIndex: 20 }}>
+      {stepIndex >= 0 && step?.kind !== "report" && step?.kind !== "mg" && <div style={{ position: "absolute", top: 20, right: 24, textAlign: "right", zIndex: 20 }}>
         <div className="display" style={{ fontSize: 40, letterSpacing: 2 }}>{state.code}</div>
         <div style={{ color: "var(--text-dim)" }}>{state.crew || "Unnamed Crew"} · {stepLabel(step)}</div>
       </div>}
@@ -208,20 +211,25 @@ export default function Host() {
         </div>
       )}
 
-      {step?.kind === "mg" && ownerRole && (
-        <div className="panel" style={{ position: "absolute", top: 20, left: 24, zIndex: 20, padding: "10px 16px", borderLeft: `4px solid ${ROLE_INFO[ownerRole].color}` }}>
-          Watching: <b>{ROLE_INFO[ownerRole].name}</b> is {MG_ACTION[step.id]}.
-          {ownerPlayer && !ownerPlayer.connected && <span style={{ color: "var(--warn)" }}> Their device is offline.</span>}
-        </div>
-      )}
-
       {step?.kind === "report" && result && (
         <Report result={result} worked={sim.bars.filter((b) => b.status === "ok").slice(0, 2).map((b) => `${b.label}: ${b.value}`)} hurt={sim.checks.find((c) => c.status === "bad") ?? sim.checks.find((c) => c.status === "warn")} />
       )}
 
       {/* Bottom bar: progress and host controls */}
       {stepIndex >= 0 && (
-        <div style={{ position: "absolute", left: 24, right: 24, bottom: 20, display: "flex", alignItems: "center", gap: 16, zIndex: 25 }}>
+        <div
+          style={{
+            position: "absolute", left: 0, right: 0, bottom: 0, height: 64, padding: "0 24px", display: "flex", alignItems: "center", gap: 16, zIndex: 25,
+            background: step?.kind === "mg" ? "var(--surface)" : undefined,
+          }}
+        >
+          {step?.kind === "mg" && (
+            <div style={{ whiteSpace: "nowrap", borderLeft: `4px solid ${ownerRole ? ROLE_INFO[ownerRole].color : "var(--text-dim)"}`, paddingLeft: 10 }}>
+              {ownerRole ? <>Watching: <b>{ROLE_INFO[ownerRole].name}</b> is {MG_ACTION[step.id]}.</> : <>The whole crew is {MG_ACTION[step.id]}.</>}
+              {ownerPlayer && !ownerPlayer.connected && <span style={{ color: "var(--warn)" }}> Their device is offline.</span>}
+              <span className="display" style={{ marginLeft: 16, letterSpacing: 2, color: "var(--text-dim)" }}>{state.code}</span>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 6, flex: 1 }}>
             {steps.map((s, i) => (
               <div key={i} title={stepLabel(s)} style={{ height: 6, flex: 1, borderRadius: 3, background: i < stepIndex ? "var(--text-dim)" : i === stepIndex ? "var(--accent)" : "var(--track)" }} />

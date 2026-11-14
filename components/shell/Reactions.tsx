@@ -21,7 +21,7 @@ export function ReactionButtons() {
 export function ReactionFeed() {
   const reactions = useMission((s) => s.reactions);
   return (
-    <div style={{ position: "absolute", right: 24, bottom: 24, display: "grid", gap: 8, justifyItems: "end", pointerEvents: "none", zIndex: 30 }}>
+    <div style={{ position: "absolute", right: 24, bottom: 84, display: "grid", gap: 8, justifyItems: "end", pointerEvents: "none", zIndex: 30 }}>
       {reactions.map((r) => (
         <div
           key={r.id}
