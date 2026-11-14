@@ -24,6 +24,7 @@ interface MissionStore {
   reactions: Reaction[];
   connect: (code: string, as: "host" | "player", name?: string) => void;
   send: (msg: ClientMsg) => void;
+  clearLive: () => void;
 }
 
 let socket: PartySocket | null = null;
@@ -78,4 +79,5 @@ export const useMission = create<MissionStore>((set, get) => ({
   send: (msg) => {
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
   },
+  clearLive: () => set({ live: {} }),
 }));

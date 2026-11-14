@@ -1,5 +1,6 @@
 import { getServerByName, routePartykitRequest, Server, type Connection } from "partyserver";
 import {
+  boardName,
   emptyState,
   ROLES,
   stepsFor,
@@ -201,7 +202,7 @@ export class MissionRoom extends Server<Env> {
   }
 
   private async submitToLeaderboard(entry: FinishedEntry) {
-    const board = await getServerByName(this.env.Leaderboard, "global");
+    const board = await getServerByName(this.env.Leaderboard, boardName(entry.board));
     await board.fetch(new Request("https://leaderboard/submit", { method: "POST", body: JSON.stringify(entry) }));
   }
 }

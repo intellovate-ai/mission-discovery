@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 .wrangler
 node_modules
+
+# Agent worktrees and local Claude state
+.claude/

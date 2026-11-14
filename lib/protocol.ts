@@ -65,6 +65,8 @@ export interface FinishedEntry {
   cost: number;
   go: boolean;
   at: number;
+  /** "dev" keeps local test runs off the live board the audience sees. */
+  board?: "live" | "dev";
 }
 
 export interface MissionState {
@@ -113,6 +115,11 @@ export type ServerMsg =
   | { t: "mg:live"; id: MinigameId; data: unknown }
   | { t: "react"; role: RoleId | null; name: string; kind: "cheer" | "careful" | "why" }
   | { t: "error"; code: "no-room" | "full" | "bad"; message: string };
+
+/** Leaderboard room names. The live board starts fresh for the event. */
+export function boardName(board: FinishedEntry["board"]): string {
+  return board === "dev" ? "dev" : "live-2026";
+}
 
 export function stepsFor(missionId: MissionId): Step[] {
   // EMBER is the playable level for the hackathon; COLDTRAP and DUSTDEVIL reuse the flow.
