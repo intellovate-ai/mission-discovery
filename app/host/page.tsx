@@ -203,7 +203,7 @@ export default function Host() {
       )}
 
       {step?.kind === "scene" && (
-        <div style={{ position: "absolute", left: 24, bottom: 96, zIndex: 20 }}>
+        <div className="panel" style={{ position: "absolute", left: 24, bottom: 84, zIndex: 20 }}>
           <div className="display" style={{ fontSize: 72 }}>{step.scene === "launch" ? "Launch Site" : "The Flight Path"}</div>
           <div style={{ fontSize: 22, color: "var(--text-dim)", marginTop: 8 }}>
             {step.scene === "launch" ? "Time to choose a ride to space." : "In orbit. Now make the mission work."}
@@ -268,7 +268,7 @@ function Lobby() {
     send({ t: "start", missionId: "ember" });
   };
   return (
-    <div className="panel" style={{ position: "absolute", top: 20, left: 24, width: 460, zIndex: 20 }}>
+    <div className="panel" style={{ position: "absolute", top: 20, right: 24, width: 440, zIndex: 20 }}>
       <div className="display" style={{ fontSize: 44 }}>MISSION: DISCOVERY</div>
       <p style={{ color: "var(--text-dim)", marginTop: 6 }}>Design it. Launch it. Find out why.</p>
       <p style={{ marginTop: 20, fontSize: 18 }}>Go to <b>{joinUrl}</b> and enter</p>
