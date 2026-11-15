@@ -1,0 +1,90 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+</head><body>
+<script type="module">
+import * as THREE from "./three.module.js";
+
+// Seeded RNG so every render is identical.
+let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, W / H, 0.01, 100);
+
+// Matches SphereGeometry's own UV layout, so lat/lon line up with the equirect textures.
+function latLon(lat, lon, r = 1) {
+  const la = THREE.MathUtils.degToRad(lat), ph = THREE.MathUtils.degToRad(lon + 180);
+  return new THREE.Vector3(-Math.cos(ph) * Math.cos(la) * r, Math.sin(la) * r, Math.sin(ph) * Math.cos(la) * r);
+}
+
+const loader = new THREE.TextureLoader();
+const [day, night] = await Promise.all(["earth-day-4k.jpg", "earth-night-3600.jpg"].map(f => loader.loadAsync(f)));
+for (const t of [day, night]) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16; }
+
+const uniforms = { dayTex: { value: day }, nightTex: { value: night }, sunDir: { value: new THREE.Vector3(1, 0, 0) }, camPos: { value: new THREE.Vector3() } };
+const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 256, 256), new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vP;
+    void main(){ vUv=uv; vN=normalize(position); vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `uniform sampler2D dayTex, nightTex; uniform vec3 sunDir, camPos;
+    varying vec2 vUv; varying vec3 vN; varying vec3 vP;
+    vec3 toLin(vec3 c){ return pow(c, vec3(2.2)); }
+    void main(){
+      vec3 N=normalize(vN); vec3 V=normalize(camPos-vP); float ndl=dot(N,sunDir);
+      vec3 d=texture2D(dayTex,vUv).rgb; vec3 n=texture2D(nightTex,vUv).rgb;
+      float dayAmt=smoothstep(-0.06,0.22,ndl);
+      vec3 lit=d*(0.10+1.6*pow(max(ndl,0.),0.8))*vec3(1.0,0.98,0.95);
+      // ocean glint on the day side
+      vec3 Hh=normalize(sunDir+V); float ocean=step(d.b,d.r*1.1+0.02)>0.5?0.:1.;
+      lit+=vec3(0.55,0.6,0.7)*pow(max(dot(N,Hh),0.),60.)*0.35*ocean*dayAmt;
+      vec3 lights=n*n*vec3(1.9,1.5,1.0)*2.2;
+      vec3 col=mix(lights,lit,dayAmt);
+      // warm twilight band
+      // atmosphere on the disc edge, brighter where sunlit
+      float fr=pow(1.-max(dot(N,V),0.),4.0);
+      col+=vec3(0.18,0.42,1.0)*fr*0.7*(0.06+0.94*smoothstep(-0.25,0.4,ndl));
+      gl_FragColor=vec4(pow(col,vec3(1./2.2)),1.);
+    }`,
+}));
+scene.add(earth);
+
+// Outer glow shell.
+const GR = 1.07;
+const glow = new THREE.Mesh(new THREE.SphereGeometry(GR, 160, 160), new THREE.ShaderMaterial({
+  uniforms: { sunDir: uniforms.sunDir, camPos: uniforms.camPos },
+  side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  vertexShader: `varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `uniform vec3 sunDir, camPos; varying vec3 vP;
+    void main(){ vec3 rd=normalize(vP-camPos); float tc=-dot(camPos,rd); vec3 cpt=camPos+rd*tc; float h=length(cpt);
+      float k=pow(clamp((${GR.toFixed(3)}-h)/(${GR.toFixed(3)}-1.0),0.,1.),3.2);
+      float sun=0.12+0.88*smoothstep(-0.35,0.3,dot(normalize(cpt),sunDir));
+      gl_FragColor=vec4(vec3(0.28,0.56,1.0)*k*sun*0.95,1.); }`,
+}));
+scene.add(glow);
+
+// Stars.
+const sp = []; for (let i = 0; i < 2200; i++) { const v = new THREE.Vector3(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1).normalize().multiplyScalar(40); sp.push(v.x, v.y, v.z); }
+const sg = new THREE.BufferGeometry(); sg.setAttribute("position", new THREE.Float32BufferAttribute(sp, 3));
+scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0x9fb3d9, size: 1.2, sizeAttenuation: false, transparent: true, opacity: 0.55 })));
+
+// p: day-to-night sweep 0..1; d: slow drift 0..1. Framing params can be overridden for tuning.
+window.P = { camLat: 6, camLon: 101, dist: 2.05, tLat: 24, tLon: 70, sunLat: -18, sunLon0: 12, sunLon1: -38, drift: 4, push: 0.06 };
+window.renderAt = (p, d) => {
+  const P = window.P;
+  const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+  uniforms.sunDir.value.copy(latLon(P.sunLat, P.sunLon0 + (P.sunLon1 - P.sunLon0) * ease)).normalize();
+  const cp = latLon(P.camLat, P.camLon - P.drift * d, P.dist - P.push * d);
+  camera.position.copy(cp); uniforms.camPos.value.copy(cp);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(latLon(P.tLat, P.tLon - P.drift * d));
+  renderer.render(scene, camera);
+  return true;
+};
+window.ready = true;
+</script>
+</body></html>

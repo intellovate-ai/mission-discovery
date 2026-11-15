@@ -44,3 +44,6 @@ node_modules
 
 # Agent worktrees and local Claude state
 .claude/
+tools/title-earth/site/
+tools/title-earth/*.jpg
+tools/title-earth/three.*.js
