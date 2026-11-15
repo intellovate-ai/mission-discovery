@@ -150,6 +150,34 @@ function cleanroomHint(i: HintInput, state: MissionState, sim: Sim): Hint {
   const leftLine = left >= 0 ? `you have $${left}k left` : `you are over by $${-left}k`;
   const problem = bad ?? warn;
 
+  // Phones: my own picks are done, but the crew's design is not. Point at the crewmate who
+  // can move it, instead of judging the whole design from my slots alone.
+  if (!move && i.where !== "host") {
+    const crewMissing = CLEANROOM_SLOTS.filter((s) => !OPTIONAL_SLOTS.includes(s) && !state.design[s] && !slots.includes(s));
+    if (crewMissing.length > 0) {
+      const owners = [...new Set(crewMissing.map((s) => SLOT_OWNER[s]))].map(roleName).join(" and ");
+      return {
+        goal,
+        steps: [
+          "Your picks are done. The bars are not final until the whole crew has picked.",
+          `Waiting on ${owners} to pick ${crewMissing.map((s) => SLOT_LABEL[s]).join(", ")}.`,
+          `Check the bars again once they finish. ${doneLine}`,
+        ],
+        why: WHY.cleanroom,
+      };
+    }
+    const crewMove = problem ? nextBuildMove(state, sim, CLEANROOM_SLOTS) : null;
+    if (crewMove && !slots.includes(crewMove.slot)) {
+      const label = SLOT_LABEL[crewMove.slot];
+      const ask = crewMove.part ? `pick ${partName(crewMove.part)} under ${label}` : `set ${label} to None`;
+      return {
+        goal,
+        steps: [`One bar is ${bad ? "red" : "yellow"}. Read the warning line.`, problem?.line ?? "", `Your own picks are fine. Ask ${roleName(SLOT_OWNER[crewMove.slot])} to ${ask}.`],
+        why: WHY.cleanroom,
+      };
+    }
+  }
+
   if (!move && problem) {
     // The design already matches the starter build for this slot set; nothing here fixes it alone.
     return {
