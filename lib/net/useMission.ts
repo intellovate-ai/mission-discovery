@@ -2,7 +2,8 @@
 // One live connection to a room. The room owns the state; this store mirrors it.
 import PartySocket from "partysocket";
 import { create } from "zustand";
-import type { ClientMsg, MinigameId, MissionState, RoleId, ServerMsg } from "../protocol";
+import { boardName, type ClientMsg, type MinigameId, type MissionState, type RoleId, type ServerMsg } from "../protocol";
+import { applyLocal, soloState } from "./localRoom";
 
 export const PARTY_HOST = process.env.NEXT_PUBLIC_PARTY_HOST ?? "mission-discovery-rooms.intellovate.workers.dev";
 
@@ -22,7 +23,12 @@ interface MissionStore {
   connected: boolean;
   live: Partial<Record<MinigameId, unknown>>;
   reactions: Reaction[];
+  /** True in single player: the room runs in this browser, no server. */
+  local: boolean;
+  /** Single player: when this browser's leaderboard post landed, so the report can re-read the board. */
+  boardPostedAt: number;
   connect: (code: string, as: "host" | "player", name?: string) => void;
+  startLocal: (crew: string) => void;
   send: (msg: ClientMsg) => void;
   clearLive: () => void;
 }
@@ -53,8 +59,11 @@ export const useMission = create<MissionStore>((set, get) => ({
   connected: false,
   live: {},
   reactions: [],
+  local: false,
+  boardPostedAt: 0,
   connect: (code, as, name) => {
     socket?.close();
+    set({ local: false });
     const playerId = as === "host" ? "host-" + getPlayerId() : getPlayerId();
     set({ code, isHost: as === "host", playerId, error: null, state: null });
     const ws = new PartySocket({ host: PARTY_HOST, party: "mission-room", room: code });
@@ -76,7 +85,29 @@ export const useMission = create<MissionStore>((set, get) => ({
       }
     });
   },
+  startLocal: (crew) => {
+    socket?.close();
+    socket = null;
+    const playerId = getPlayerId();
+    set({ local: true, code: "SOLO", isHost: false, playerId, error: null, connected: true, live: {}, state: soloState(playerId, crew) });
+  },
   send: (msg) => {
+    const st = get();
+    if (st.local) {
+      if (!st.state) return;
+      if (msg.t === "mg:live") return set({ live: { ...st.live, [msg.id]: msg.data } });
+      const next = applyLocal(st.state, msg, st.playerId);
+      if (next) set({ state: next });
+      // A finished solo mission still goes on the shared leaderboard.
+      if (msg.t === "finish" && next) {
+        const local = ["localhost", "127.0.0.1"].includes(location.hostname);
+        const entry = { ...msg.entry, board: local ? ("dev" as const) : ("live" as const) };
+        void fetch(`https://${PARTY_HOST}/parties/leaderboard/${boardName(entry.board)}`, { method: "POST", body: JSON.stringify(entry) })
+          .then(() => set({ boardPostedAt: Date.now() }))
+          .catch(() => {});
+      }
+      return;
+    }
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
   },
   clearLive: () => set({ live: {} }),

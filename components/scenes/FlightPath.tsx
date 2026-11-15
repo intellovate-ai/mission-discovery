@@ -18,7 +18,7 @@ const ACES_FILMIC = 6;
 const TEXTURES = ["/textures/earth-day-4k.jpg", "/textures/earth-night-3600.jpg"];
 // Start loading the Earth maps as soon as this module is imported, before the scene shows.
 if (typeof window !== "undefined") useTexture.preload(TEXTURES);
-const R = 5; // Earth radius in scene units (6,371 km)
+export const R = 5; // Earth radius in scene units (6,371 km)
 const KM = R / 6371;
 const DEFAULT_ALT_KM = 550;
 
@@ -253,7 +253,7 @@ function useEarthMaterial(sunDir: THREE.Vector3, day: THREE.Texture | null, nigh
   );
 }
 
-function Earth({ earthRef, sunDir }: { earthRef: React.RefObject<THREE.Mesh | null>; sunDir: THREE.Vector3 }) {
+export function Earth({ earthRef, sunDir }: { earthRef: React.RefObject<THREE.Mesh | null>; sunDir: THREE.Vector3 }) {
   const [day, night] = useTexture(TEXTURES, (ts) => {
     for (const t of ts) {
       t.colorSpace = THREE.SRGBColorSpace;
@@ -264,7 +264,7 @@ function Earth({ earthRef, sunDir }: { earthRef: React.RefObject<THREE.Mesh | nu
   return <EarthMesh earthRef={earthRef} material={mat} />;
 }
 
-function FallbackEarth({ earthRef, sunDir }: { earthRef: React.RefObject<THREE.Mesh | null>; sunDir: THREE.Vector3 }) {
+export function FallbackEarth({ earthRef, sunDir }: { earthRef: React.RefObject<THREE.Mesh | null>; sunDir: THREE.Vector3 }) {
   const mat = useEarthMaterial(sunDir, null, null);
   return <EarthMesh earthRef={earthRef} material={mat} />;
 }
@@ -308,7 +308,7 @@ const atmoFrag = /* glsl */ `
   }
 `;
 
-function Atmosphere({ sunDir }: { sunDir: THREE.Vector3 }) {
+export function Atmosphere({ sunDir }: { sunDir: THREE.Vector3 }) {
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -329,7 +329,7 @@ function Atmosphere({ sunDir }: { sunDir: THREE.Vector3 }) {
   );
 }
 
-function Sun({ dir }: { dir: THREE.Vector3 }) {
+export function Sun({ dir }: { dir: THREE.Vector3 }) {
   const p = dir.clone().multiplyScalar(420);
   return (
     <mesh position={p}>

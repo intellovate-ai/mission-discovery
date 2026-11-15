@@ -2,15 +2,16 @@
 // The big screen. Opens a room, shows the code, then follows the room's step list:
 // objective vote, Clean Room build, scenes, mini games (mirrored live), report and leaderboard.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { boardName, newRoomCode, ROLES, stepsFor, type FinishedEntry, type RoleId, type Step } from "@/lib/protocol";
-import { PARTY_HOST, useMission } from "@/lib/net/useMission";
-import { score, simulate, type ResourceKey } from "@/lib/game/sim";
+import { newRoomCode, ROLES, stepsFor, type FinishedEntry, type RoleId, type Step } from "@/lib/protocol";
+import { useMission } from "@/lib/net/useMission";
+import { score, simulate } from "@/lib/game/sim";
 import { CLEANROOM_SLOTS, EMBER, OPTIONAL_SLOTS, type ObjectiveId } from "@/lib/game/data/ember";
 import { MG_ACTION, ROLE_INFO, STATUS_COLOR } from "@/lib/game/roles";
 import { MINIGAMES } from "@/lib/minigames/registry";
 import Hud from "@/components/shell/Hud";
 import MinigameStage from "@/components/shell/MinigameStage";
 import { ReactionFeed } from "@/components/shell/Reactions";
+import Report from "@/components/shell/Report";
 import CleanRoom from "@/components/scenes/CleanRoom";
 import LaunchSite from "@/components/scenes/LaunchSite";
 import FlightPath from "@/components/scenes/FlightPath";
@@ -29,14 +30,6 @@ const isLocal = () => ["localhost", "127.0.0.1"].includes(location.hostname);
 
 const REQUIRED = CLEANROOM_SLOTS.filter((s) => !OPTIONAL_SLOTS.includes(s));
 
-const REAL_WORLD: Record<ResourceKey, string> = {
-  mass: "parts usually come in heavier than planned, which is why engineers keep margin.",
-  power: "solar panels slowly lose power as they age in space.",
-  budget: "missions are reviewed for cost at every stage, and some get cut when they grow.",
-  data: "many satellites collect far more than their radios can send home.",
-  comms: "many satellites collect far more than their radios can send home.",
-  time: "launch dates are fixed, and a late spacecraft waits for the next ride.",
-};
 
 function stepLabel(step: Step | undefined): string {
   if (!step) return "";
@@ -212,7 +205,7 @@ export default function Host() {
       )}
 
       {step?.kind === "report" && result && (
-        <Report result={result} worked={sim.bars.filter((b) => b.status === "ok").slice(0, 2).map((b) => `${b.label}: ${b.value}`)} hurt={sim.checks.find((c) => c.status === "bad") ?? sim.checks.find((c) => c.status === "warn")} />
+        <Report result={result} worked={sim.bars.filter((b) => b.status === "ok").slice(0, 2).map((b) => `${b.label}: ${b.value}`)} hurt={sim.checks.find((c) => c.status === "bad") ?? sim.checks.find((c) => c.status === "warn")} onNew={() => { sessionStorage.removeItem(CODE_KEY); location.reload(); }} />
       )}
 
       {/* Bottom bar: progress and host controls */}
@@ -330,85 +323,3 @@ function ObjectiveVote({ tally, votes, online, onLock }: { tally: (id: string) =
   );
 }
 
-function Report({ result, worked, hurt }: { result: ReturnType<typeof score>; worked: string[]; hurt?: { line: string; resource: ResourceKey } }) {
-  const { state, send } = useMission();
-  const [board, setBoard] = useState<FinishedEntry[] | null>(null);
-  const finishedAt = state?.finished?.at;
-  useEffect(() => {
-    if (!finishedAt) return;
-    const t = setTimeout(() => {
-      fetch(`https://${PARTY_HOST}/parties/leaderboard/${boardName(isLocal() ? "dev" : "live")}?mission=${state?.missionId ?? "ember"}`)
-        .then((r) => r.json())
-        .then((d: FinishedEntry[]) => setBoard(d))
-        .catch(() => setBoard([]));
-    }, 800);
-    return () => clearTimeout(t);
-  }, [finishedAt, state?.missionId]);
-  if (!state) return null;
-  const rows: [string, number, number][] = [
-    ["Science", result.science, 400],
-    ["Efficiency", result.efficiency, 250],
-    ["Decisions", result.decisions, 150],
-    ["Collaboration", result.collaboration, 100],
-    ["Skill", result.skill, 100],
-  ];
-  return (
-    <div style={{ position: "absolute", inset: "20px 24px 72px", display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20, zIndex: 20 }}>
-      <div className="panel" style={{ overflow: "auto" }}>
-        <div className="display" style={{ fontSize: 46 }}>
-          {state.crew || "Unnamed Crew"} reached {result.cml}: {result.meaning}.
-        </div>
-        <div style={{ fontSize: 28, marginTop: 10, color: result.go ? "var(--ok)" : "var(--bad)", fontWeight: 700 }}>
-          The Board said {result.go ? "GO" : "NO GO"}.
-        </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 18 }}>
-          <span className="display" style={{ fontSize: 96 }}>{result.total}</span>
-          <span style={{ color: "var(--text-dim)", fontSize: 22 }}>of 1,000</span>
-        </div>
-        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-          {rows.map(([label, v, max]) => (
-            <div key={label} style={{ display: "grid", gridTemplateColumns: "140px 1fr 90px", alignItems: "center", gap: 12 }}>
-              <span>{label}</span>
-              <div style={{ height: 8, background: "var(--track)", borderRadius: 4 }}>
-                <div style={{ height: "100%", width: `${(v / max) * 100}%`, background: "var(--text)", borderRadius: 4 }} />
-              </div>
-              <span style={{ color: "var(--text-dim)", textAlign: "right" }}>{v} of {max}</span>
-            </div>
-          ))}
-        </div>
-        {worked.length > 0 && <p style={{ marginTop: 18, fontSize: 18 }}><b>What worked:</b> {worked.join(". ")}.</p>}
-        {hurt && <p style={{ marginTop: 10, fontSize: 18 }}><b>What hurt:</b> {hurt.line}</p>}
-        {hurt && <p style={{ marginTop: 10, fontSize: 18, color: "var(--text-dim)" }}>Real missions face this too: {REAL_WORLD[hurt.resource]}</p>}
-        <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-          <button className="btn" onClick={() => send({ t: "again" })}>Fly It Again</button>
-          <button
-            className="btn btn-quiet"
-            onClick={() => {
-              sessionStorage.removeItem(CODE_KEY);
-              location.reload();
-            }}
-          >
-            New Mission
-          </button>
-        </div>
-      </div>
-      <div className="panel" style={{ overflow: "auto" }}>
-        <div className="display" style={{ fontSize: 32 }}>Leaderboard</div>
-        {!board && <p style={{ color: "var(--text-dim)", marginTop: 12 }}>Loading every crew&apos;s missions.</p>}
-        {board?.length === 0 && <p style={{ color: "var(--text-dim)", marginTop: 12 }}>You are the first crew to finish.</p>}
-        <ol style={{ marginTop: 12, display: "grid", gap: 8 }}>
-          {board?.slice(0, 10).map((e, i) => {
-            const mine = e.at === finishedAt && e.crew === (state.crew || "Unnamed Crew");
-            return (
-              <li key={`${e.crew}-${e.at}`} style={{ display: "grid", gridTemplateColumns: "28px 1fr auto", gap: 10, fontSize: 18, color: mine ? "var(--accent)" : undefined, fontWeight: mine ? 700 : 400 }}>
-                <span>{i + 1}</span>
-                <span>{e.crew}{e.go ? "" : " (No Go)"}</span>
-                <span>{e.score}</span>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-    </div>
-  );
-}
