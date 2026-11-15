@@ -10,4 +10,5 @@ Data, assets and references used in Mission: Discovery.
 - GROUND TRACK orbit physics: two-body motion with the standard J2 nodal drift (sun-synchronous tilt computed from it); camera swath and daylight rule are game simplifications
 - NASA Earth Observatory, *Blue Marble: Next Generation* (Reto Stöckli, NASA Earth Observatory), fetched at 4096x2048 from NASA GIBS (layer `BlueMarble_NextGeneration`), public domain. File: `public/textures/earth-day-4k.jpg` (Flight Path day side)
 - NASA Earth Observatory, *Earth at Night (Black Marble) 2012* (NASA Earth Observatory / NOAA NGDC, Suomi NPP VIIRS), 3600x1800, public domain. File: `public/textures/earth-night-3600.jpg` (Flight Path city lights)
+- NASA Johnson Space Center, *Earth in 4K: Space Station Expedition 67-68 Edition* (NASA ID `jsc2023m000111`, images.nasa.gov), orbital sunrise from the International Space Station, 49:22 to 50:12, rotated 180 degrees and cropped to 16:9, public domain. File: `public/video/title-sunrise.mp4` (title screen)
 - Astronaut figure, CubeSat, rocket, gantry and clean room are built from primitives in code (no third-party models)
