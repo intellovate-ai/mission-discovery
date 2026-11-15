@@ -10,5 +10,14 @@ Data, assets and references used in Mission: Discovery.
 - GROUND TRACK orbit physics: two-body motion with the standard J2 nodal drift (sun-synchronous tilt computed from it); camera swath and daylight rule are game simplifications
 - NASA Earth Observatory, *Blue Marble: Next Generation* (Reto Stöckli, NASA Earth Observatory), fetched at 4096x2048 from NASA GIBS (layer `BlueMarble_NextGeneration`), public domain. File: `public/textures/earth-day-4k.jpg` (Flight Path day side)
 - NASA Earth Observatory, *Earth at Night (Black Marble) 2012* (NASA Earth Observatory / NOAA NGDC, Suomi NPP VIIRS), 3600x1800, public domain. File: `public/textures/earth-night-3600.jpg` (Flight Path city lights)
-- NASA Johnson Space Center, *Earth in 4K: Space Station Expedition 67-68 Edition* (NASA ID `jsc2023m000111`, images.nasa.gov), orbital sunrise from the International Space Station, 49:22 to 50:12, rotated 180 degrees and cropped to 16:9, public domain. File: `public/video/title-sunrise.mp4` (title screen)
+- Title screen opening shot: Earth turning from day to night over India, rendered in three.js from the two NASA textures above (Blue Marble day side, Black Marble city lights) with a sun direction that sweeps across the terminator. No third-party footage. File: `public/video/title-earth.mp4` (title screen) and the first shot of the demo video
+- NASA Jet Propulsion Laboratory, *Concept Maturity Levels* (CML), listed in the challenge's resources: the mission report's maturity scale, CML 2 Initial Feasibility through CML 5 Concept Baseline. https://dataverse.jpl.nasa.gov/dataset.xhtml?persistentId=hdl:2014/44299
+- Fonts via Google Fonts (SIL Open Font License): Barlow and Barlow Condensed (interface and demo video)
 - Astronaut figure, CubeSat, rocket, gantry and clean room are built from primitives in code (no third-party models)
+
+## Demo Video (`submission/video/`)
+
+- Narration: SI generated voice, Google Cloud Text-to-Speech Chirp 3 HD, voice `en-US-Chirp3-HD-Alnilam` (see `SI-USAGE.md`)
+- Music: "Chronos Dream" by ZeroCopyright Music Zone, Creative Commons Attribution (CC BY), https://www.youtube.com/watch?v=bCmzKfxP-4E, credited on the end card
+- Sound effect: one cinematic whoosh from Pixabay (Pixabay Content License, no attribution required; credited anyway)
+- Picture: gameplay and the title screen captured from the live site, opening on the title screen's day to night Earth shot above
