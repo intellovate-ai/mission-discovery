@@ -15,6 +15,9 @@ import Report from "@/components/shell/Report";
 import CleanRoom from "@/components/scenes/CleanRoom";
 import LaunchSite from "@/components/scenes/LaunchSite";
 import FlightPath from "@/components/scenes/FlightPath";
+import HintButton from "@/components/shell/HintButton";
+import { ResultToast } from "@/components/shell/Celebrate";
+import { hintFor, OBJECTIVE_TIP, reportTips } from "@/lib/game/hints";
 
 const CODE_KEY = "md-host-code";
 function hostCode(): string {
@@ -43,6 +46,10 @@ function stepLabel(step: Step | undefined): string {
 export default function Host() {
   const code = useSyncExternalStore(() => () => {}, hostCode, () => null);
   const { connect, send, clearLive, state, connected } = useMission();
+  const live = useMission((s) => {
+    const st = s.state && s.state.stepIndex >= 0 ? stepsFor(s.state.missionId)[s.state.stepIndex] : undefined;
+    return st?.kind === "mg" ? (s.live[st.id] ?? null) : null;
+  });
 
   useEffect(() => {
     if (code) connect(code, "host");
@@ -205,7 +212,7 @@ export default function Host() {
       )}
 
       {step?.kind === "report" && result && (
-        <Report result={result} worked={sim.bars.filter((b) => b.status === "ok").slice(0, 2).map((b) => `${b.label}: ${b.value}`)} hurt={sim.checks.find((c) => c.status === "bad") ?? sim.checks.find((c) => c.status === "warn")} onNew={() => { sessionStorage.removeItem(CODE_KEY); location.reload(); }} />
+        <Report result={result} worked={sim.bars.filter((b) => b.status === "ok").slice(0, 2).map((b) => `${b.label}: ${b.value}`)} hurt={sim.checks.find((c) => c.status === "bad") ?? sim.checks.find((c) => c.status === "warn")} tips={reportTips(sim, state, result.skill)} onNew={() => { sessionStorage.removeItem(CODE_KEY); location.reload(); }} />
       )}
 
       {/* Bottom bar: progress and host controls */}
@@ -228,6 +235,7 @@ export default function Host() {
               <div key={i} title={stepLabel(s)} style={{ height: 6, flex: 1, borderRadius: 3, background: i < stepIndex ? "var(--text-dim)" : i === stepIndex ? "var(--accent)" : "var(--track)" }} />
             ))}
           </div>
+          <HintButton big autoPrompt={false} resetKey={String(stepIndex)} hint={hintFor({ where: "host", step, state, sim, myRoles: [], live })} />
           {step?.kind === "mg" && (
             <button
               className="btn btn-quiet"
@@ -246,6 +254,12 @@ export default function Host() {
           )}
         </div>
       )}
+      {stepIndex === -1 && (
+        <div style={{ position: "absolute", right: 24, bottom: 24, zIndex: 25 }}>
+          <HintButton big autoPrompt={false} resetKey="lobby" hint={hintFor({ where: "host", step: undefined, state, sim, myRoles: [] })} />
+        </div>
+      )}
+      <ResultToast big />
       <ReactionFeed />
     </main>
   );
@@ -312,6 +326,7 @@ function ObjectiveVote({ tally, votes, online, onLock }: { tally: (id: string) =
               {o.must.map((m) => <li key={m}>{m}</li>)}
             </ul>
             <p style={{ marginTop: 8, fontSize: 15 }}>Nice to have: {o.nice}</p>
+            <p style={{ marginTop: 8, fontSize: 15, color: "var(--text-dim)" }}><b style={{ color: "var(--text)" }}>{OBJECTIVE_TIP[o.id].level}.</b> {OBJECTIVE_TIP[o.id].needs}</p>
           </div>
         ))}
       </div>

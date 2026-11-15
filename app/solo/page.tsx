@@ -13,11 +13,18 @@ import Report from "@/components/shell/Report";
 import CleanRoom from "@/components/scenes/CleanRoom";
 import LaunchSite from "@/components/scenes/LaunchSite";
 import FlightPath from "@/components/scenes/FlightPath";
+import HintButton from "@/components/shell/HintButton";
+import { ResultToast } from "@/components/shell/Celebrate";
+import { hintFor, OBJECTIVE_TIP, reportTips } from "@/lib/game/hints";
 
 const REQUIRED = CLEANROOM_SLOTS.filter((s) => !OPTIONAL_SLOTS.includes(s));
 
 export default function Solo() {
   const { state, local, send, startLocal, clearLive } = useMission();
+  const live = useMission((s) => {
+    const st = s.state ? stepsFor(s.state.missionId)[s.state.stepIndex] : undefined;
+    return st?.kind === "mg" ? (s.live[st.id] ?? null) : null;
+  });
   const [crew, setCrew] = useState("");
   const sim = useMemo(
     () => (state ? simulate(state.design, state.objectiveId as ObjectiveId | null, state.rescueUsed) : null),
@@ -139,6 +146,9 @@ export default function Solo() {
                   {o.must.map((m) => <li key={m}>{m}</li>)}
                 </ul>
                 <p style={{ marginTop: 8, fontSize: 15 }}>Nice to have: {o.nice}</p>
+                <p style={{ marginTop: 10, fontSize: 15, color: "var(--text-dim)", lineHeight: 1.4 }}>
+                  <b style={{ color: "var(--text)" }}>{OBJECTIVE_TIP[o.id].level}.</b> {OBJECTIVE_TIP[o.id].needs}
+                </p>
               </button>
             ))}
           </div>
@@ -165,23 +175,30 @@ export default function Solo() {
           result={result}
           worked={sim.bars.filter((b) => b.status === "ok").slice(0, 2).map((b) => `${b.label}: ${b.value}`)}
           hurt={sim.checks.find((c) => c.status === "bad") ?? sim.checks.find((c) => c.status === "warn")}
+          tips={reportTips(sim, state, result.skill)}
           onNew={() => useMission.setState({ local: false, state: null })}
         />
       )}
 
+      <ResultToast />
       {/* Bottom strip: progress and the controls the big screen host would normally have */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 64, padding: "0 24px", display: "flex", alignItems: "center", gap: 16, background: step?.kind === "mg" ? "var(--surface)" : undefined }}>
-        <div style={{ display: "flex", gap: 6, flex: 1 }}>
+        <div style={{ display: "flex", gap: 6, flex: 1, minWidth: 40 }}>
           {steps.map((s, i) => (
             <div key={i} style={{ height: 6, flex: 1, borderRadius: 3, background: i < stepIndex ? "var(--text-dim)" : i === stepIndex ? "var(--accent)" : "var(--track)" }} />
           ))}
         </div>
+        <span style={{ color: "var(--text-dim)", fontSize: 15, whiteSpace: "nowrap" }} className="hidden sm:inline">
+          Step {stepIndex + 1} of {steps.length}
+        </span>
+        <HintButton resetKey={String(stepIndex)} hint={hintFor({ where: "solo", step, state, sim, myRoles, live })} />
         {step?.kind === "mg" && (
           <button
             className="btn btn-quiet"
             onClick={() => send({ t: "mg:done", id: step.id, result: { ...MINIGAMES[step.id].autoResolve({ state, sim, myRoles, isHost: false }), auto: true } })}
           >
-            Skip With Average Result
+            <span className="hidden sm:inline">Skip With Average Result</span>
+            <span className="sm:hidden">Skip</span>
           </button>
         )}
         {(step?.kind === "scene" || step?.kind === "cleanroom") && (

@@ -22,6 +22,8 @@ interface MissionStore {
   error: string | null;
   connected: boolean;
   live: Partial<Record<MinigameId, unknown>>;
+  /** This device's own mini game frames (the room does not echo them back). Throttled; read by hints only. */
+  ownLive: Partial<Record<MinigameId, unknown>>;
   reactions: Reaction[];
   /** True in single player: the room runs in this browser, no server. */
   local: boolean;
@@ -35,6 +37,7 @@ interface MissionStore {
 
 let socket: PartySocket | null = null;
 let reactionId = 0;
+let ownLiveAt = 0;
 
 export function getPlayerId(): string {
   try {
@@ -58,6 +61,7 @@ export const useMission = create<MissionStore>((set, get) => ({
   error: null,
   connected: false,
   live: {},
+  ownLive: {},
   reactions: [],
   local: false,
   boardPostedAt: 0,
@@ -108,7 +112,11 @@ export const useMission = create<MissionStore>((set, get) => ({
       }
       return;
     }
+    if (msg.t === "mg:live" && Date.now() - ownLiveAt > 400) {
+      ownLiveAt = Date.now();
+      set({ ownLive: { ...st.ownLive, [msg.id]: msg.data } });
+    }
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
   },
-  clearLive: () => set({ live: {} }),
+  clearLive: () => set({ live: {}, ownLive: {} }),
 }));

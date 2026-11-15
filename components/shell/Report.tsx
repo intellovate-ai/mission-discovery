@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { boardName, type FinishedEntry } from "@/lib/protocol";
 import { PARTY_HOST, useMission } from "@/lib/net/useMission";
 import type { ResourceKey, Score } from "@/lib/game/sim";
+import { CML_LADDER } from "@/lib/game/hints";
+import { Confetti } from "./Celebrate";
 
 const isLocal = () => ["localhost", "127.0.0.1"].includes(location.hostname);
 
@@ -16,7 +18,7 @@ const REAL_WORLD: Record<ResourceKey, string> = {
   time: "launch dates are fixed, and a late spacecraft waits for the next ride.",
 };
 
-export default function Report({ result, worked, hurt, onNew }: { result: Score; worked: string[]; hurt?: { line: string; resource: ResourceKey }; onNew: () => void }) {
+export default function Report({ result, worked, hurt, tips = [], onNew }: { result: Score; worked: string[]; hurt?: { line: string; resource: ResourceKey }; tips?: string[]; onNew: () => void }) {
   const { state, send, boardPostedAt } = useMission();
   const [board, setBoard] = useState<FinishedEntry[] | null>(null);
   const finishedAt = state?.finished?.at;
@@ -41,7 +43,8 @@ export default function Report({ result, worked, hurt, onNew }: { result: Score;
     ["Skill", result.skill, 100],
   ];
   return (
-    <div style={{ position: "absolute", inset: "20px 24px 72px", display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20, zIndex: 20 }}>
+    <div style={{ position: "absolute", inset: "20px 24px 72px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20, zIndex: 20, overflowY: "auto" }}>
+      {result.go && <Confetti />}
       <div className="panel" style={{ overflow: "auto" }}>
         <div className="display" style={{ fontSize: 46 }}>
           {state.crew || "Unnamed Crew"} reached {result.cml}: {result.meaning}.
@@ -67,6 +70,35 @@ export default function Report({ result, worked, hurt, onNew }: { result: Score;
         {worked.length > 0 && <p style={{ marginTop: 18, fontSize: 18 }}><b>What worked:</b> {worked.join(". ")}.</p>}
         {hurt && <p style={{ marginTop: 10, fontSize: 18 }}><b>What hurt:</b> {hurt.line}</p>}
         {hurt && <p style={{ marginTop: 10, fontSize: 18, color: "var(--text-dim)" }}>Real missions face this too: {REAL_WORLD[hurt.resource]}</p>}
+        {tips.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>Try This Next</div>
+            <ul style={{ marginTop: 6, paddingLeft: 20, listStyle: "disc", display: "grid", gap: 4, fontSize: 17, lineHeight: 1.4 }}>
+              {tips.map((t) => <li key={t}>{t}</li>)}
+            </ul>
+          </div>
+        )}
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>What Your Level Means</div>
+          <p style={{ marginTop: 4, fontSize: 15, color: "var(--text-dim)", lineHeight: 1.45 }}>
+            JPL rates mission ideas with Concept Maturity Levels (CML), from an idea on a napkin to a design ready to propose.
+          </p>
+          <div style={{ display: "grid", gap: 4, marginTop: 8 }}>
+            {CML_LADDER.map((c, i) => {
+              const next = CML_LADDER[i + 1];
+              const here = result.total >= c.min && (!next || result.total < next.min);
+              return (
+                <div key={c.name} style={{ display: "grid", gridTemplateColumns: "56px 1fr", gap: 10, fontSize: 16, color: here ? "var(--text)" : "var(--text-dim)", fontWeight: here ? 700 : 400 }}>
+                  <span>{c.min}+</span>
+                  <span>
+                    {c.name}: {c.meaning}{here ? " (You Are Here)" : ""}
+                    {here && next ? `. ${next.min - result.total} more points to reach ${next.name.split(":")[0]}.` : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
         <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
           <button className="btn" onClick={() => send({ t: "again" })}>Fly It Again</button>
           <button

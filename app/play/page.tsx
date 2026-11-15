@@ -12,6 +12,9 @@ import Build from "@/components/shell/Build";
 import RoleCards from "@/components/shell/RoleCards";
 import MinigameStage from "@/components/shell/MinigameStage";
 import { ReactionButtons } from "@/components/shell/Reactions";
+import HintButton from "@/components/shell/HintButton";
+import { ResultToast } from "@/components/shell/Celebrate";
+import { hintFor, OBJECTIVE_TIP } from "@/lib/game/hints";
 
 const JOIN_KEY = "md-join";
 const savedJoin = () => {
@@ -26,6 +29,10 @@ const savedJoin = () => {
 export default function Play() {
   const saved = useSyncExternalStore(() => () => {}, savedJoin, () => null);
   const { code, state, error, connect, playerId, clearLive } = useMission();
+  const live = useMission((s) => {
+    const st = s.state && s.state.stepIndex >= 0 ? stepsFor(s.state.missionId)[s.state.stepIndex] : undefined;
+    return st?.kind === "mg" ? (s.live[st.id] ?? s.ownLive[st.id] ?? null) : null;
+  });
   const myRoles = useMemo(() => (state ? rolesOf(state, playerId) : []), [state, playerId]);
   const sim = useMemo(
     () => (state ? simulate(state.design, state.objectiveId as ObjectiveId | null, state.rescueUsed) : null),
@@ -39,23 +46,35 @@ export default function Play() {
 
   const step = stepIndex >= 0 ? stepsFor(state.missionId)[stepIndex] : undefined;
   const me = state.players.find((p) => p.id === playerId);
+  const hintKey = `${stepIndex}`;
 
   // Mini games take the whole device.
   if (step?.kind === "mg") {
     const def = MINIGAMES[step.id];
     const mine = def.owner === "team" || myRoles.includes(def.owner);
     if (mine) {
+      // A slim bar above the game holds the Hint button, so it never covers the game's own controls.
       return (
-        <main style={{ position: "fixed", inset: 0 }}>
-          <MinigameStage key={`${stepIndex}-${step.id}`} id={step.id} mode="play" state={state} sim={sim} myRoles={myRoles} isHost={false} />
+        <main style={{ position: "fixed", inset: 0, display: "grid", gridTemplateRows: "48px 1fr" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "0 8px 0 12px", background: "var(--surface)" }}>
+            <span style={{ fontSize: 15, color: "var(--text-dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {def.owner === "team" ? "Whole crew" : `Your turn: ${ROLE_INFO[def.owner].name}`}
+            </span>
+            <HintButton opens="down" resetKey={hintKey} hint={hintFor({ where: "phone", step, state, sim, myRoles, live })} />
+          </div>
+          <div style={{ position: "relative" }}>
+            <MinigameStage key={`${stepIndex}-${step.id}`} id={step.id} mode="play" state={state} sim={sim} myRoles={myRoles} isHost={false} />
+          </div>
+          <ResultToast />
         </main>
       );
     }
     const owner = def.owner as RoleId;
     return (
       <main style={{ position: "fixed", inset: 0, display: "grid", gridTemplateRows: "auto 1fr auto" }}>
-        <div style={{ padding: "12px 16px", borderLeft: `4px solid ${ROLE_INFO[owner].color}` }}>
-          Watching: <b>{ROLE_INFO[owner].name}</b> is {MG_ACTION[step.id]}.
+        <div style={{ padding: "8px 8px 8px 16px", borderLeft: `4px solid ${ROLE_INFO[owner].color}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span>Watching: <b>{ROLE_INFO[owner].name}</b> is {MG_ACTION[step.id]}.</span>
+          <HintButton opens="down" autoPrompt={false} resetKey={hintKey} hint={hintFor({ where: "host", step, state, sim, myRoles: [], live })} />
         </div>
         <div style={{ position: "relative" }}>
           <MinigameStage key={`${stepIndex}-${step.id}`} id={step.id} mode="watch" state={state} sim={sim} myRoles={myRoles} isHost={false} />
@@ -69,9 +88,11 @@ export default function Play() {
 
   return (
     <Shell>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontWeight: 600 }}>{me?.name ?? "Crew"}</span>
+      <ResultToast />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <span style={{ fontWeight: 600, flex: 1 }}>{me?.name ?? "Crew"}</span>
         <span className="display" style={{ fontSize: 22, letterSpacing: 2 }}>{state.code}</span>
+        <HintButton opens="down" resetKey={hintKey} autoPrompt={step?.kind !== "scene" && step?.kind !== "report"} hint={hintFor({ where: "phone", step, state, sim, myRoles, live })} />
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
         {myRoles.map((r) => (
@@ -119,7 +140,10 @@ function JoinForm({ saved, error, onJoin }: { saved: string | null; error: strin
   const field = { display: "block", width: "100%", marginTop: 6, padding: "14px 14px", borderRadius: 6, background: "var(--track)", color: "var(--text)", fontSize: 22 } as const;
   return (
     <Shell>
-      <h1 className="display" style={{ fontSize: 44, marginTop: 24 }}>MISSION: DISCOVERY</h1>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <HintButton opens="down" resetKey="join" hint={hintFor({ where: "phone", step: undefined, state: null, sim: null, myRoles: [], joining: true })} />
+      </div>
+      <h1 className="display" style={{ fontSize: 44, marginTop: 8 }}>MISSION: DISCOVERY</h1>
       <label style={{ display: "block", marginTop: 28, color: "var(--text-dim)" }}>
         Enter the code on the big screen
         <input value={c} onChange={(e) => setCode(e.target.value)} autoCapitalize="characters" autoComplete="off" inputMode="text" style={{ ...field, fontSize: 40, letterSpacing: 10, fontFamily: "var(--font-display)" }} />
@@ -193,6 +217,7 @@ function ObjectivePick() {
           >
             <div className="display" style={{ fontSize: 24 }}>{o.title}</div>
             <div style={{ fontSize: 14, marginTop: 4, opacity: 0.85 }}>{o.must.join(". ")}.</div>
+            <div style={{ fontSize: 14, marginTop: 6 }}><b>{OBJECTIVE_TIP[o.id].level}.</b> <span style={{ opacity: 0.85 }}>{OBJECTIVE_TIP[o.id].needs}</span></div>
           </button>
         ))}
       </div>
